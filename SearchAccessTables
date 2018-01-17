@@ -1,0 +1,301 @@
+Option Compare Database
+Public Sub SearchQueries(SearchText As String, _
+                  Optional ShowSQL As Boolean = False, _
+                  Optional QryName As String = "*")
+    On Error Resume Next
+    Dim QDef As QueryDef
+
+    For Each QDef In CurrentDb.QueryDefs
+        If QDef.Name Like QryName Then
+            If InStr(QDef.SQL, SearchText) > 0 Then
+                Debug.Print QDef.Name
+                If ShowSQL Then Debug.Print QDef.SQL & vbCrLf
+            End If
+        End If
+    Next QDef
+End Sub
+
+
+'Updated: 1/19/09 Limit search by object name pattern
+'Public Sub SearchDB(SearchText As String, _
+'             Optional ObjType As AcObjectType = acDefault, _
+'             Optional ObjName As String = "*")
+Public Sub SearchDB()
+
+    Dim db As Database, obj As AccessObject, Ctl As Control, Prop As Property, dbData As Object
+    Dim Frm As Form, rpt As Report, mdl As Module
+    Dim objLoaded As Boolean, Found As Boolean, Instances As Long
+    Dim SLine As Long, SCol As Long, ELine As Long, ECol As Long
+    Dim ObjType As AcObjectType, ObjName As String
+    Dim QDef As QueryDef
+    Dim rp, rc, fp, fc, fm As String
+    Dim FSO As Scripting.FileSystemObject
+    Set FSO = New Scripting.FileSystemObject
+    Dim txs As Scripting.TextStream
+    'Set txs = FSO.CreateTextFile("C:\Users\caddo\Documents\Access Outputs\ArkOutput.txt")
+    txss = "C:\Users\caddo\Documents\Access Outputs\ArkFormOutput.txt"
+    Set dbData = Application.CurrentData
+    Set db = CurrentDb
+
+    'Set AcObjectType = acDefault
+    ObjName = "*"
+    ObjType = acForm    'acReport
+    On Error GoTo Err_SearchDB
+
+
+    Application.Echo False
+
+
+
+    'List of queries
+    i = 0
+    For Each qry In dbData.AllQueries    'return the values of properties of individual AccessObject objects in the AllQueries collection
+        
+        i = i + 1
+        Debug.Print i, qry.Name
+'        If qry.Name = "qryRDCSearchObligor" Then Stop
+'    Next qry
+        SearchText = qry.Name
+
+
+
+        '    '===============================================
+        '    'Search reports
+        '    If ObjType = acDefault Or ObjType = acReport Then
+        ''        Debug.Print "Reports:"
+        '        On Error Resume Next
+        '        For Each obj In CurrentProject.AllReports
+        '            If obj.Name Like ObjName Then
+        '                objLoaded = obj.IsLoaded
+        '                If Not obj.IsLoaded Then DoCmd.OpenReport obj.Name, acViewDesign, , , acHidden
+        '                Set rpt = Application.Reports(obj.Name)
+        '                For Each Prop In rpt.Properties
+        '                    Err.Clear
+        '                    If InStr(Prop.Value, SearchText) > 0 Then
+        '                        If Err.Number = 0 Then
+        '                            rp = "Report: " & rpt.Name & _
+                                     '                                        ", Property: " & Prop.Name & _
+                                     '                                        ", Query: " & SearchText & _
+                                     '                                        ", Value:" & Prop.Value
+        '
+        '                            AppendRecordsAsText rp, txss
+        '                        End If
+        '                    End If
+        '                Next Prop
+        '                If rpt.HasModule Then
+        '                    SLine = 0: SCol = 0: ELine = 0: ECol = 0: Instances = 0
+        '                    Found = rpt.Module.Find(SearchText, SLine, SCol, ELine, ECol)
+        '                    Do Until Not Found
+        '                        Instances = Instances + 1
+        '                        SLine = ELine + 1: SCol = 0: ELine = 0: ECol = 0
+        '                        Found = rpt.Module.Find(SearchText, SLine, SCol, ELine, ECol)
+        '                    Loop
+        '                    If Instances > 0 Then Debug.Print "Report: " & rpt.Name & _
+                             '                       "  Module: " & Instances & " instances"
+        '
+        '                End If
+        '                For Each Ctl In rpt.Controls
+        '                    For Each Prop In Ctl.Properties
+        '                        If InStr(Prop.Value, SearchText) > 0 Then
+        '                            If Err.Number = 0 Then
+        '                            rc = "Report: " & rpt.Name & _
+                                     '                                        "  Control: " & Ctl.Name & _
+                                     '                                        ", Query: " & SearchText & _
+                                     '                                        ", Value:" & Prop.Value
+        '
+        '                            AppendRecordsAsText rc, txss
+        '                            End If
+        '                        End If
+        '                    Next Prop
+        '                Next Ctl
+        '                Set rpt = Nothing
+        '                If Not objLoaded Then DoCmd.Close acReport, obj.Name, acSaveNo
+        '                DoEvents
+        '            End If
+        '        Next obj
+        '        On Error GoTo Err_SearchDB
+        '        Debug.Print vbCrLf
+        '    End If
+
+
+        '===============================================
+        'Search forms
+        If ObjType = acDefault Or ObjType = acForm Then
+'            Debug.Print "Forms:"
+            On Error Resume Next
+            For Each obj In CurrentProject.AllForms
+                If obj.Name Like ObjName Then
+                    objLoaded = obj.IsLoaded
+                    If Not obj.IsLoaded Then DoCmd.OpenForm obj.Name, acViewDesign, , , , acHidden
+                    Set Frm = Application.Forms(obj.Name)
+                    For Each Prop In Frm.Properties
+                        Err.Clear
+                        If InStr(Prop.Value, SearchText) > 0 Then
+                            If Err.Number = 0 Then
+                                fp = "Form: " & Frm.Name & _
+                                     ",  Property: " & Prop.Name & _
+                                     ", Query: " & SearchText & _
+                                     ", Value:" & Prop.Value
+                                AppendRecordsAsText fp, txss
+                                i = i + 1
+                                Debug.Print i
+                            End If
+                        End If
+                    Next Prop
+                    If Frm.HasModule Then
+                        SLine = 0: SCol = 0: ELine = 0: ECol = 0: Instances = 0
+                        Found = Frm.Module.Find(SearchText, SLine, SCol, ELine, ECol)
+                        Do Until Not Found
+                            Instances = Instances + 1
+                            SLine = ELine + 1: SCol = 0: ELine = 0: ECol = 0
+                            Found = Frm.Module.Find(SearchText, SLine, SCol, ELine, ECol)
+                        Loop
+                        If Instances > 0 Then
+                            fm = "Form: " & Frm.Name & ",  Module: " & Instances & " instances" & ", Query: " & SearchText
+                            AppendRecordsAsText fm, txss
+                        End If
+
+                    End If
+                    For Each Ctl In Frm.Controls
+                        For Each Prop In Ctl.Properties
+                            Err.Clear
+                            If InStr(Prop.Value, SearchText) > 0 Then
+                                If Err.Number = 0 Then
+                                    fc = "Form: " & Frm.Name & _
+                                         ",  Control: " & Ctl.Name & _
+                                         ", Query: " & SearchText & _
+                                         ", Value:" & Prop.Value
+                                    AppendRecordsAsText fc, txss
+                                i = i + 1
+                                Debug.Print i
+                                End If
+                            End If
+                        Next Prop
+                    Next Ctl
+                    Set Frm = Nothing
+                    If Not objLoaded Then
+                        DoCmd.Close acForm, obj.Name, acSaveNo
+                        DoEvents
+                    End If
+                End If
+            Next obj
+            On Error GoTo Err_SearchDB
+            Debug.Print vbCrLf
+        End If
+
+    Next qry
+
+Exit_SearchDB:
+    Application.Echo True
+    Exit Sub
+Err_SearchDB:
+    Application.Echo True
+    Debug.Print Err.Description
+    Debug.Assert False
+    Resume
+End Sub
+
+Public Function link_test()
+    SearchDB "qryCovenantDueSelectType"
+'    SearchQueries "qryCovenantDueSelectType"
+End Function
+
+Sub ClearPrinterSettings()
+    Dim rpt As Object
+    i = 0
+    On Error Resume Next
+    For Each rpt In CurrentProject.AllReports
+        DoCmd.OpenReport rpt.Name, acViewPreview, , "", acHidden
+        If Not Reports(rpt.Name).UseDefaultPrinter Then
+            Reports(rpt.Name).UseDefaultPrinter = True
+            DoCmd.Save acReport, rpt.Name
+        End If
+        DoCmd.Close
+        i = i + 1
+        Debug.Print (i + rpt.Name)
+    Next rpt
+End Sub
+
+'---------------------------------------------------------------------------------------
+' Procedure : RptPrntSetDef
+' Author    : Daniel Pineault, CARDA Consultants Inc.
+' Website   : http://www.cardaconsultants.com
+' Purpose   : Ensure that all the report apge setups are set to use the Default Printer
+' Copyright : The following may be altered and reused as you wish so long as the
+'             copyright notice is left unchanged (including Author, Website and
+'             Copyright).  It may not be sold/resold or reposted on other sites (links
+'             back to this site are allowed).
+'
+' Revision History:
+' Rev       Date(yyyy/mm/dd)        Description
+' **************************************************************************************
+' 1         2011-05-23              Initial Release
+'---------------------------------------------------------------------------------------
+Sub RptPrntSetDef()
+    On Error GoTo Error_Handler
+    Dim db               As DAO.Database
+    Dim DbP              As Object
+    Dim DbO              As AccessObject
+ 
+    Set db = CurrentDb
+    DoCmd.SetWarnings False
+    Debug.Print "RptPrntSetDef Begin"
+    Debug.Print "================================================================================"
+    'Check Reports
+    Set DbP = Application.CurrentProject
+    For Each DbO In DbP.AllReports
+        DoCmd.OpenReport DbO.Name, acDesign
+        If Reports(DbO.Name).Report.UseDefaultPrinter = False Then
+            Debug.Print "Editing Report '" & DbO.Name & "'"
+            Reports(DbO.Name).Report.UseDefaultPrinter = True
+            DoCmd.Close acReport, DbO.Name, acSaveYes
+        Else
+            DoCmd.Close acReport, DbO.Name, acSaveNo
+        End If
+    Next DbO
+    Debug.Print "================================================================================"
+    Debug.Print "RptPrntSetDef End"
+ 
+Error_Handler_Exit:
+    On Error Resume Next
+    DoCmd.SetWarnings True
+    Set DbO = Nothing
+    Set DbP = Nothing
+    Set db = Nothing
+    Exit Sub
+ 
+Error_Handler:
+    MsgBox "MS Access has generated the following error" & vbCrLf & vbCrLf & "Error Number: " & _
+    Err.Number & vbCrLf & "Error Source: RptPrntSetDef" & vbCrLf & "Error Description: " & _
+    Err.Description, vbCritical, "An Error has Occured!"
+    Resume Error_Handler_Exit
+End Sub
+
+Public Sub AppendRecordsAsText( _
+       ByVal QueryString As String, _
+       ByVal FullFilePathandName As String)
+
+    Dim AppendString As String
+    Dim FileNumber As Integer
+
+    On Error GoTo AppendRecordsAsTextErr:
+
+'    AppendString = CurrentProject.Connection.Execute(QueryString) _
+'                   .GetString(adClipString, , " ", vbNewLine)
+
+    FileNumber = FreeFile
+    Open FullFilePathandName For Append As #FileNumber
+
+    Write #FileNumber, , QueryString
+'    Write #FileNumber, , AppendString
+    Close #FileNumber
+
+AppendRecordsAsTextExit:
+    'BE SURE low level file handles are released
+    Close
+    Exit Sub
+AppendRecordsAsTextErr:
+    With Err
+    End With
+    Resume AppendRecordsAsTextExit:
+End Sub
